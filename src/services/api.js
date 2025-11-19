@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
+const API_URL = import.meta.env.VITE_API_URL || 'https://aureagh-backend.onrender.com/api'
 
 const api = axios.create({
   baseURL: API_URL,
@@ -8,7 +8,7 @@ const api = axios.create({
     'Content-Type': 'application/json'
   }
 })
-
+//http://localhost:3001/api
 // Interceptor para agregar el token a todas las peticiones
 api.interceptors.request.use(
   (config) => {
