@@ -1,14 +1,26 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
 const Login = () => {
   const STORAGE_KEY = 'loginFormState'
   const [formData, setFormData] = useState({ email: '', password: '' })
   const [error, setError] = useState('')
+  const [successMessage, setSuccessMessage] = useState('')
   const [loading, setLoading] = useState(false)
   const { login } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
+
+  // Mostrar mensaje de éxito si viene desde reset-password
+  useEffect(() => {
+    if (location.state?.message) {
+      setSuccessMessage(location.state.message)
+      // Limpiar el state para que no se repita
+      window.history.replaceState({}, document.title)
+      setTimeout(() => setSuccessMessage(''), 5000)
+    }
+  }, [location])
 
   // Restaurar estado previo (form y error) para evitar que se pierdan por remounts/renders
   useEffect(() => {
@@ -69,6 +81,12 @@ const Login = () => {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
+            {successMessage && (
+              <div className="bg-green-100 text-green-700 p-3 rounded-md text-sm">
+                {successMessage}
+              </div>
+            )}
+
             <div>
               <label className="block text-gray-700 font-medium mb-2">Email</label>
               <input
@@ -93,6 +111,14 @@ const Login = () => {
                 className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                 placeholder="••••••••"
               />
+              <div className="mt-2 text-right">
+                <Link 
+                  to="/forgot-password" 
+                  className="text-sm text-gray-600 hover:text-black"
+                >
+                  ¿Olvidaste tu contraseña?
+                </Link>
+              </div>
             </div>
 
             {error && (
