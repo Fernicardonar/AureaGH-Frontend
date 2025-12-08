@@ -2,29 +2,87 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
 import { useFavorites } from '../context/FavoritesContext'
+import { useToast } from '../context/ToastContext'
+import axios from 'axios'
 
 const ProductCard = ({ product }) => {
   const { addToCart } = useCart()
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, token } = useAuth()
   const { isFavorite, toggleFavorite, loaded } = useFavorites()
+  const { success, info, error } = useToast()
   const navigate = useNavigate()
 
   const handleAddToCart = () => {
     addToCart(product)
+    success(`${product.name} agregado al carrito ✓`)
   }
 
-  const handleWhatsApp = () => {
-    const telefono = "573054412261"
-    const productUrl = `${window.location.origin}/producto/${product._id}`
-    const mensaje = `Hola, estoy interesado/a en este producto:
+  const handleWhatsApp = async () => {
+    if (!isAuthenticated) {
+      navigate('/login')
+      return
+    }
 
-*${product.name}*
-💰 Precio: $${product.price.toLocaleString('es-CO')}
-🔗 Ver producto: ${productUrl}
+    try {
+      console.log('[ProductCard WhatsApp] Token:', token ? token.substring(0, 20) + '...' : 'NO DISPONIBLE')
+      console.log('[ProductCard WhatsApp] isAuthenticated:', isAuthenticated)
 
-¿Está disponible?`
-    const url = `https://wa.me/${telefono}?text=${encodeURIComponent(mensaje)}`
-    window.open(url, "_blank")
+      // Crear orden solo con el producto actual (sin carrito)
+      const orderItems = [{
+        productId: product._id,
+        name: product.name,
+        price: product.price,
+        quantity: 1,
+        selectedSize: 'Sin especificar',
+        selectedColor: 'Sin especificar'
+      }]
+
+      const total = product.price
+
+      // Register order in backend
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL}/orders/whatsapp/create`,
+        {
+          cartItems: orderItems,
+          total: total,
+          shippingAddress: 'A definir en WhatsApp'
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      )
+
+      if (response.data.success) {
+        success(`Orden ${response.data.orderId} registrada ✓. Por favor, envía tu comprobante de pago en WhatsApp.`)
+
+        // Build WhatsApp message with order details
+        const telefono = "+573054412261"
+        const orderId = response.data.orderId
+        const cartSummary = orderItems
+          .map(item => `• ${item.name} x${item.quantity} = $${(item.price * item.quantity).toLocaleString('es-CO')}`)
+          .join('\n')
+
+        const mensaje = `Hola, estoy en Áurea Virtual Shop y quiero confirmar mi compra 🛍️
+
+*Número de Orden:* #${orderId}
+
+*Productos:*
+${cartSummary}
+
+*Total:* $${total.toLocaleString('es-CO')}
+
+Por favor, indícame cómo proceder con el pago.`
+
+        const url = `https://wa.me/${telefono}?text=${encodeURIComponent(mensaje)}`
+        window.open(url, "_blank")
+      }
+    } catch (err) {
+      console.error('[ProductCard WhatsApp] Error completo:', err)
+      const errorMsg = err.response?.data?.error || err.response?.data?.message || err.message
+      error(`Error al registrar orden: ${errorMsg}`)
+    }
   }
 
   const handleToggleFavorite = async (e) => {
@@ -34,7 +92,13 @@ const ProductCard = ({ product }) => {
       navigate('/login')
       return
     }
+    const isFav = isFavorite(product._id)
     await toggleFavorite(product._id)
+    if (isFav) {
+      info(`${product.name} eliminado de favoritos`)
+    } else {
+      success(`${product.name} agregado a favoritos ♥`)
+    }
   }
 
   return (

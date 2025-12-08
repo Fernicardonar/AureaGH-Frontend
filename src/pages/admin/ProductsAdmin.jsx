@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
+import { useNavigate } from 'react-router-dom'
 import {
   getAllProductsAdmin,
   createProduct,
@@ -33,6 +34,7 @@ const emptyForm = {
 
 const ProductsAdmin = () => {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const [products, setProducts] = useState([])
   const [filtered, setFiltered] = useState([])
   const [loading, setLoading] = useState(true)
@@ -207,9 +209,17 @@ const ProductsAdmin = () => {
       <div className="container-custom">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-3xl font-bold">Administración de Productos</h1>
-          <button onClick={startCreate} className="btn btn-primary">
-            <i className="fas fa-plus mr-2"/> Nuevo producto
-          </button>
+          <div className="flex gap-3">
+            <button 
+              onClick={() => navigate('/admin/orders')}
+              className="btn bg-orange-500 text-white hover:bg-orange-600"
+            >
+              <i className="fas fa-box mr-2"/> Gestionar Órdenes
+            </button>
+            <button onClick={startCreate} className="btn btn-primary">
+              <i className="fas fa-plus mr-2"/> Nuevo producto
+            </button>
+          </div>
         </div>
 
         {/* Filtros */}

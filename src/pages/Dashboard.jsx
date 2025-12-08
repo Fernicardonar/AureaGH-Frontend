@@ -2,11 +2,14 @@ import { useAuth } from '../context/AuthContext'
 import { useEffect, useState } from 'react'
 import { getMyFavorites } from '../services/authService'
 import ProductCard from '../components/ProductCard'
+import axios from 'axios'
 
 const Dashboard = () => {
-  const { user } = useAuth()
+  const { user, token } = useAuth()
   const [favLoading, setFavLoading] = useState(true)
   const [favorites, setFavorites] = useState([])
+  const [orders, setOrders] = useState([])
+  const [ordersLoading, setOrdersLoading] = useState(true)
 
   useEffect(() => {
     const load = async () => {
@@ -22,6 +25,32 @@ const Dashboard = () => {
     }
     load()
   }, [])
+
+  useEffect(() => {
+    const loadOrders = async () => {
+      try {
+        setOrdersLoading(true)
+        const response = await axios.get(
+          `${import.meta.env.VITE_API_URL}/orders/my-orders`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          }
+        )
+        setOrders(response.data || [])
+      } catch (e) {
+        console.error('Error al cargar pedidos:', e)
+        setOrders([])
+      } finally {
+        setOrdersLoading(false)
+      }
+    }
+
+    if (token) {
+      loadOrders()
+    }
+  }, [token])
 
   return (
     <div className="min-h-screen bg-gray-50 py-16">
@@ -94,10 +123,83 @@ const Dashboard = () => {
 
             <div className="bg-white rounded-lg shadow-md p-8 mt-8">
               <h2 className="text-2xl font-bold text-gray-800 mb-6">Pedidos Recientes</h2>
-              <div className="text-center py-8 text-gray-500">
-                <i className="fas fa-shopping-bag text-4xl mb-3"></i>
-                <p>No tienes pedidos registrados aún</p>
-              </div>
+              {ordersLoading ? (
+                <div className="flex justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                </div>
+              ) : orders.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <i className="fas fa-shopping-bag text-4xl mb-3"></i>
+                  <p>No tienes pedidos registrados aún</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-100 border-b">
+                      <tr>
+                        <th className="px-4 py-3 text-left font-semibold">ID Orden</th>
+                        <th className="px-4 py-3 text-left font-semibold">Productos</th>
+                        <th className="px-4 py-3 text-left font-semibold">Total</th>
+                        <th className="px-4 py-3 text-left font-semibold">Método</th>
+                        <th className="px-4 py-3 text-left font-semibold">Status</th>
+                        <th className="px-4 py-3 text-left font-semibold">Fecha</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {orders.map(order => (
+                        <tr key={order._id} className="border-b hover:bg-gray-50">
+                          <td className="px-4 py-3 font-mono text-xs">{order._id.substring(0, 8)}</td>
+                          <td className="px-4 py-3 text-xs">
+                            <div className="space-y-1">
+                              {order.orderItems?.slice(0, 2).map((item, idx) => (
+                                <div key={idx}>
+                                  {item.name} x{item.quantity}
+                                  {item.size && ` (${item.size})`}
+                                </div>
+                              ))}
+                              {order.orderItems?.length > 2 && (
+                                <div className="text-gray-500">+{order.orderItems.length - 2} más</div>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 font-bold">
+                            ${order.totalPrice?.toLocaleString('es-CO')}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`px-2 py-1 rounded text-xs font-medium ${
+                              order.paymentMethod === 'whatsapp'
+                                ? 'bg-green-100 text-green-800'
+                                : 'bg-blue-100 text-blue-800'
+                            }`}>
+                              {order.paymentMethod === 'whatsapp' ? 'WhatsApp' : order.paymentMethod}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`px-2 py-1 rounded text-xs font-medium ${
+                              order.status === 'pendiente_confirmacion'
+                                ? 'bg-yellow-100 text-yellow-800'
+                                : order.status === 'pagado'
+                                ? 'bg-green-100 text-green-800'
+                                : order.status === 'enviado'
+                                ? 'bg-blue-100 text-blue-800'
+                                : order.status === 'entregado'
+                                ? 'bg-purple-100 text-purple-800'
+                                : order.status === 'cancelado'
+                                ? 'bg-red-100 text-red-800'
+                                : 'bg-gray-100 text-gray-800'
+                            }`}>
+                              {order.status === 'pendiente_confirmacion' ? 'Pendiente' : order.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-xs">
+                            {new Date(order.createdAt).toLocaleDateString('es-CO')}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
 
             {/* Favoritos */}

@@ -3,6 +3,10 @@ import { AuthProvider } from './context/AuthContext'
 import { FavoritesProvider } from './context/FavoritesContext'
 import { CartProvider } from './context/CartContext'
 import { ProductProvider } from './context/ProductContext'
+import { ToastProvider } from './context/ToastContext'
+
+// Components
+import Toast from './components/Toast'
 
 // Layout
 import Layout from './components/layout/Layout'
@@ -23,49 +27,61 @@ import Dashboard from './pages/Dashboard'
 import PrivateRoute from './components/PrivateRoute'
 import AdminRoute from './components/AdminRoute'
 import ProductsAdmin from './pages/admin/ProductsAdmin'
+import OrdersManagement from './pages/admin/OrdersManagement'
 
 function App() {
   return (
     <Router>
-      <AuthProvider>
-        <FavoritesProvider>
-          <ProductProvider>
-            <CartProvider>
-            <Routes>
-              <Route path="/" element={<Layout />}>
-                <Route index element={<Home />} />
-                <Route path="mujer" element={<Mujer />} />
-                <Route path="hombre" element={<Hombre />} />
-                <Route path="destacados" element={<Destacados />} />
-                <Route path="promociones" element={<Promociones />} />
-                <Route path="accesorios" element={<Accesorios />} />
-                <Route path="contacto" element={<Contact />} />
-                <Route path="login" element={<Login />} />
-                <Route path="register" element={<Register />} />
-                <Route path="carrito" element={<Cart />} />
-                <Route path="producto/:id" element={<ProductDetail />} />
-                <Route 
-                  path="dashboard" 
-                  element={
-                    <PrivateRoute>
-                      <Dashboard />
-                    </PrivateRoute>
-                  } 
-                />
-                  <Route 
-                    path="admin/products" 
-                    element={
-                      <AdminRoute>
-                        <ProductsAdmin />
-                      </AdminRoute>
-                    }
-                  />
-              </Route>
-            </Routes>
-            </CartProvider>
-          </ProductProvider>
-        </FavoritesProvider>
-      </AuthProvider>
+      <ToastProvider>
+        <AuthProvider>
+          <FavoritesProvider>
+            <ProductProvider>
+              <CartProvider>
+                <Toast />
+                <Routes>
+                  <Route path="/" element={<Layout />}>
+                    <Route index element={<Home />} />
+                    <Route path="mujer" element={<Mujer />} />
+                    <Route path="hombre" element={<Hombre />} />
+                    <Route path="destacados" element={<Destacados />} />
+                    <Route path="promociones" element={<Promociones />} />
+                    <Route path="accesorios" element={<Accesorios />} />
+                    <Route path="contacto" element={<Contact />} />
+                    <Route path="login" element={<Login />} />
+                    <Route path="register" element={<Register />} />
+                    <Route path="carrito" element={<Cart />} />
+                    <Route path="producto/:id" element={<ProductDetail />} />
+                    <Route 
+                      path="dashboard" 
+                      element={
+                        <PrivateRoute>
+                          <Dashboard />
+                        </PrivateRoute>
+                      } 
+                    />
+                    <Route 
+                      path="admin/products" 
+                      element={
+                        <AdminRoute>
+                          <ProductsAdmin />
+                        </AdminRoute>
+                      }
+                    />
+                    <Route 
+                      path="admin/orders" 
+                      element={
+                        <AdminRoute>
+                          <OrdersManagement />
+                        </AdminRoute>
+                      }
+                    />
+                  </Route>
+                </Routes>
+              </CartProvider>
+            </ProductProvider>
+          </FavoritesProvider>
+        </AuthProvider>
+      </ToastProvider>
     </Router>
   )
 }

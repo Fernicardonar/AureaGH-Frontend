@@ -1,29 +1,82 @@
 import { useCart } from '../context/CartContext'
-import { Link } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
+import { useToast } from '../context/ToastContext'
+import { Link, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import TermsAndConditions from '../components/TermsAndConditions'
+import axios from 'axios'
 
 const Cart = () => {
   const { cartItems, removeFromCart, updateQuantity, getCartTotal, clearCart } = useCart()
+  const { isAuthenticated, token } = useAuth()
+  const { success, error } = useToast()
+  const navigate = useNavigate()
   const [showTerms, setShowTerms] = useState(false)
 
-  const handleWhatsAppOrder = () => {
-    const telefono = "573006003786"
-    let mensaje = "Hola! Quiero realizar el siguiente pedido:\n\n"
-    
-    cartItems.forEach((item, index) => {
-      mensaje += `${index + 1}. *${item.name}*\n`
-      if (item.selectedSize) mensaje += `   Talla: ${item.selectedSize}\n`
-      if (item.selectedColor) mensaje += `   Color: ${item.selectedColor}\n`
-      mensaje += `   Cantidad: ${item.quantity}\n`
-      mensaje += `   Precio: $${item.price.toLocaleString('es-CO')}\n`
-      mensaje += `   Subtotal: $${(item.price * item.quantity).toLocaleString('es-CO')}\n\n`
-    })
-    
-    mensaje += `*Total: $${getCartTotal().toLocaleString('es-CO')}*`
-    
-    const url = `https://wa.me/${telefono}?text=${encodeURIComponent(mensaje)}`
-    window.open(url, "_blank")
+  const handleWhatsAppOrder = async () => {
+    if (!isAuthenticated) {
+      navigate('/login')
+      return
+    }
+
+    if (cartItems.length === 0) {
+      error('El carrito está vacío')
+      return
+    }
+
+    try {
+      // Preparar items de la orden igual que ProductCard
+      const orderItems = cartItems.map(item => ({
+        productId: item._id,
+        name: item.name,
+        price: item.price,
+        quantity: item.quantity,
+        selectedSize: item.selectedSize || 'Sin especificar',
+        selectedColor: item.selectedColor || 'Sin especificar'
+      }))
+
+      const total = getCartTotal()
+
+      // Registrar orden en backend
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL}/orders/whatsapp/create`,
+        {
+          cartItems: orderItems,
+          total: total,
+          shippingAddress: 'A definir en WhatsApp'
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      )
+
+      if (response.data.success) {
+        success(`Orden ${response.data.orderId} registrada ✓. Por favor, envía tu comprobante de pago en WhatsApp.`)
+
+        // Construir mensaje WhatsApp con detalles de la orden
+        const telefono = "+573054412261"
+        const orderId = response.data.orderId
+        let mensaje = `Hola, estoy en Áurea Virtual Shop y quiero confirmar mi compra 🛍️\n\n*Número de Orden:* #${orderId}\n\n*Productos:*\n`
+        
+        cartItems.forEach((item, index) => {
+          mensaje += `${index + 1}. *${item.name}* x${item.quantity} = $${(item.price * item.quantity).toLocaleString('es-CO')}\n`
+          if (item.selectedSize) mensaje += `   📏 Talla: ${item.selectedSize}\n`
+          if (item.selectedColor) mensaje += `   🎨 Color: ${item.selectedColor}\n`
+        })
+
+        mensaje += `\n*Total:* $${total.toLocaleString('es-CO')}\n\nPor favor, indícame cómo proceder con el pago.`
+
+        const url = `https://wa.me/${telefono}?text=${encodeURIComponent(mensaje)}`
+        window.open(url, "_blank")
+
+        // Limpiar carrito después de abrir WhatsApp
+        clearCart()
+      }
+    } catch (err) {
+      error(`Error al registrar orden: ${err.response?.data?.error || err.response?.data?.message || err.message}`)
+    }
   }
 
   if (cartItems.length === 0) {

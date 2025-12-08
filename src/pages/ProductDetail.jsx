@@ -3,7 +3,9 @@ import { useParams, Link } from 'react-router-dom'
 import { getProductById, addReview } from '../services/productService'
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
+import { useToast } from '../context/ToastContext'
 import SizeGuide from '../components/SizeGuide'
+import axios from 'axios'
 
 // Mapeo de nombres de colores en español a códigos hexadecimales
 const colorMap = {
@@ -44,7 +46,8 @@ const ProductDetail = () => {
   const [submitting, setSubmitting] = useState(false)
   const [showSizeGuide, setShowSizeGuide] = useState(false)
   const { addToCart } = useCart()
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, token } = useAuth()
+  const { success, error } = useToast()
 
   // Calcular stock disponible según la variante seleccionada
   useEffect(() => {
@@ -84,28 +87,75 @@ const ProductDetail = () => {
 
   const handleAddToCart = () => {
     addToCart(product, quantity, selectedSize, selectedColor)
+    success(`${product.name} x${quantity} agregado al carrito ✓`)
   }
 
-  const handleWhatsApp = () => {
-    const telefono = "573054412261"
-    const productUrl = `${window.location.origin}/producto/${id}`
-    let mensaje = `Hola, estoy interesado/a en este producto:
+  const handleWhatsApp = async () => {
+    if (!isAuthenticated) {
+      navigate('/login')
+      return
+    }
 
-*${product.name}*
-💰 Precio: $${product.price.toLocaleString('es-CO')}
-📦 Cantidad: ${quantity}`
-    
-    if (selectedSize) {
-      mensaje += `\n📏 Talla: ${selectedSize}`
+    try {
+      // Create order item for this product
+      const orderItem = {
+        productId: product._id,
+        name: product.name,
+        price: product.price,
+        quantity: quantity,
+        selectedSize: selectedSize || 'Sin especificar',
+        selectedColor: selectedColor || 'Sin especificar'
+      }
+
+      const total = product.price * quantity
+
+      // Register order in backend
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL}/orders/whatsapp/create`,
+        {
+          cartItems: [orderItem],
+          total: total,
+          shippingAddress: 'A definir en WhatsApp'
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      )
+
+      if (response.data.success) {
+        success(`Orden ${response.data.orderId} registrada ✓. Por favor, envía tu comprobante de pago en WhatsApp.`)
+
+        // Build WhatsApp message with order details
+        const telefono = "+573054412261"
+        const orderId = response.data.orderId
+        const priceFormatted = (product.price * quantity).toLocaleString('es-CO')
+
+        let mensaje = `Hola, estoy en Áurea Virtual Shop y quiero confirmar mi compra 🛍️
+
+      *Número de Orden:* #${orderId}
+
+      *Producto:*
+      • ${product.name} x${quantity} = $${priceFormatted}`
+        
+        if (selectedSize) {
+          mensaje += `\n  📏 Talla: ${selectedSize}`
+        }
+        if (selectedColor) {
+          mensaje += `\n  🎨 Color: ${selectedColor}`
+        }
+
+        mensaje += `\n\n*Total:* $${total.toLocaleString('es-CO')}
+
+      Por favor, indícame cómo proceder con el pago.`
+
+        const url = `https://wa.me/${telefono}?text=${encodeURIComponent(mensaje)}`
+        window.open(url, "_blank")
+      }
+    } catch (err) {
+      error(`Error al registrar orden: ${err.response?.data?.message || err.message}`)
     }
-    if (selectedColor) {
-      mensaje += `\n🎨 Color: ${selectedColor}`
-    }
-    
-    mensaje += `\n🔗 Ver producto: ${productUrl}\n\n¿Está disponible?`
-    
-    const url = `https://wa.me/${telefono}?text=${encodeURIComponent(mensaje)}`
-    window.open(url, "_blank")
   }
 
   const submitRating = async () => {
