@@ -91,11 +91,6 @@ const ProductDetail = () => {
   }
 
   const handleWhatsApp = async () => {
-    if (!isAuthenticated) {
-      navigate('/login')
-      return
-    }
-
     try {
       // Create order item for this product
       const orderItem = {
@@ -108,53 +103,62 @@ const ProductDetail = () => {
       }
 
       const total = product.price * quantity
+      let orderId = null
 
-      // Register order in backend
-      const response = await axios.post(
-        `${import.meta.env.VITE_API_URL}/orders/whatsapp/create`,
-        {
-          cartItems: [orderItem],
-          total: total,
-          shippingAddress: 'A definir en WhatsApp'
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`
+      // Si está autenticado, registrar la orden en backend
+      if (isAuthenticated && token) {
+        try {
+          const response = await axios.post(
+            `${import.meta.env.VITE_API_URL}/orders/whatsapp/create`,
+            {
+              cartItems: [orderItem],
+              total: total,
+              shippingAddress: 'A definir en WhatsApp'
+            },
+            {
+              headers: {
+                Authorization: `Bearer ${token}`
+              }
+            }
+          )
+
+          if (response.data.success) {
+            orderId = response.data.orderId
+            success(`Orden ${orderId} registrada ✓. Por favor, envía tu comprobante de pago en WhatsApp.`)
           }
+        } catch (err) {
+          console.error('[ProductDetail WhatsApp] Error al registrar orden:', err)
+          // Continuar aunque falle el registro
         }
-      )
-
-      if (response.data.success) {
-        success(`Orden ${response.data.orderId} registrada ✓. Por favor, envía tu comprobante de pago en WhatsApp.`)
-
-        // Build WhatsApp message with order details
-        const telefono = "+573054412261"
-        const orderId = response.data.orderId
-        const priceFormatted = (product.price * quantity).toLocaleString('es-CO')
-
-        let mensaje = `Hola, estoy en Áurea Virtual Shop y quiero confirmar mi compra 🛍️
-
-      *Número de Orden:* #${orderId}
-
-      *Producto:*
-      • ${product.name} x${quantity} = $${priceFormatted}`
-        
-        if (selectedSize) {
-          mensaje += `\n  📏 Talla: ${selectedSize}`
-        }
-        if (selectedColor) {
-          mensaje += `\n  🎨 Color: ${selectedColor}`
-        }
-
-        mensaje += `\n\n*Total:* $${total.toLocaleString('es-CO')}
-
-      Por favor, indícame cómo proceder con el pago.`
-
-        const url = `https://wa.me/${telefono}?text=${encodeURIComponent(mensaje)}`
-        window.open(url, "_blank")
       }
+
+      // Build WhatsApp message with order details
+      const telefono = "+573054412261"
+      const priceFormatted = (product.price * quantity).toLocaleString('es-CO')
+
+      let mensaje = `Hola, estoy en Áurea Virtual Shop y quiero confirmar mi compra 🛍️\n\n`
+      
+      if (orderId) {
+        mensaje += `*Número de Orden:* #${orderId}\n\n`
+      }
+      
+      mensaje += `*Producto:*\n      • ${product.name} x${quantity} = $${priceFormatted}`
+        
+      if (selectedSize) {
+        mensaje += `\n  📏 Talla: ${selectedSize}`
+      }
+      if (selectedColor) {
+        mensaje += `\n  🎨 Color: ${selectedColor}`
+      }
+
+      mensaje += `\n\n*Total:* $${total.toLocaleString('es-CO')}\n\n      Por favor, indícame cómo proceder con el pago.`
+
+      const url = `https://wa.me/${telefono}?text=${encodeURIComponent(mensaje)}`
+      window.open(url, "_blank")
     } catch (err) {
-      error(`Error al registrar orden: ${err.response?.data?.message || err.message}`)
+      console.error('[ProductDetail WhatsApp] Error completo:', err)
+      const errorMsg = err.message || 'Error al abrir WhatsApp'
+      error(`Error: ${errorMsg}`)
     }
   }
 
